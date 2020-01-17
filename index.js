@@ -7,75 +7,81 @@ const writeFile = promisify(fs.writeFile);
 
 async function main() {
   const pathToFile = process.argv[2];
-  const pathValue = path.parse(pathToFile);
+  const filename = path.parse(pathToFile).name;
 
   const file = await readFile(pathToFile, { encoding: "utf8" });
-  const { max, sizes } = extract(file);
+  const { max, sizes } = extractProblem(file);
+  const { result, total } = findMaxSum({ max, sizes });
 
-  problemInfo({ max, sizes });
+  printScore({ max, total });
 
-  const { currentTotal, result } = findMaxSum({ sizes, max });
-
-  console.log({ currentTotal, max, diff: max - currentTotal });
-
-  const pizzasToOrder = result
-    .map((val, i) => (val ? i : null))
-    .filter(Boolean);
-
+  const pizzasToOrder = result.map(byIndex).filter(byNotNull);
   const resultText = `${pizzasToOrder.length}\n${pizzasToOrder.join(" ")}`;
-  writeFile(
-    path.join(__dirname, "outputs", `${pathValue.name}.out`),
+
+  await writeFile(
+    path.join(__dirname, "outputs", `${filename}.out`),
     resultText
   );
 }
 
-function extract(file) {
+function extractProblem(file) {
   const [details, rawSizes] = file.split("\n");
-  const [max] = details.split(" ");
+  const max = +details.split(" ")[0];
   const sizes = rawSizes.split(" ").map(Number);
 
-  return { max: +max, sizes };
+  return { max, sizes };
 }
 
 function findMaxSum({ sizes, max }) {
   const result = [...sizes];
   let total = sum(sizes);
-
   let diff = Math.abs(max - total);
 
-  let minNum = Math.min(...sizes);
-  let maxNum = Math.max(...sizes);
-
   while (total > max) {
-    const index = result.indexOf(diff);
-    if (index === -1) {
-      if (diff < minNum) {
-        diff++;
-      } else if (diff > maxNum) {
-        diff = maxNum;
-      } else {
-        diff--;
-      }
-    } else {
-      total -= diff;
-      result[index] = null;
-      let tmp = result.filter(Boolean);
+    const value = getClosest(result.filter(byNotNull), diff);
+    const index = result.indexOf(value);
 
-      minNum = Math.min(...tmp);
-      maxNum = Math.max(...tmp);
-      diff = Math.abs(max - total);
-    }
+    total -= value;
+
+    result[index] = null;
+    diff = Math.abs(max - total);
   }
 
-  return { result, currentTotal: total };
+  return { result, total };
 }
 
-function problemInfo({ max, sizes }) {
-  console.log({ max, sizes, amount: sizes.length });
+function getClosest(numbers, target) {
+  const max = Math.max(...numbers);
+  const min = Math.min(...numbers);
+
+  if (target > max) {
+    return max;
+  } else if (target < min) {
+    return min;
+  } else {
+    return numbers.reduce((prev, curr) =>
+      Math.abs(curr - target) < Math.abs(prev - target) ? curr : prev
+    );
+  }
 }
 
 function sum(numbers) {
-  return numbers.reduce((acc, number) => acc + number, 0);
+  return numbers.reduce((acc, number) => acc + number);
+}
+
+function byIndex(val, i) {
+  return val && i;
+}
+
+function byNotNull(value) {
+  return value !== null;
+}
+
+function printScore({ max, total }) {
+  console.log(`Max: ${max}
+Total: ${total}
+Diff: ${max - total}  
+Score: ${total}`);
 }
 
 main();
