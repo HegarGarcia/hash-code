@@ -55,26 +55,25 @@ function printProblem(libraries, limitDays) {
   console.log({ libraries: libraries.length });
 }
 
-function solver(libraries) {
-  const sortedLibs = libraries.sort(byLesSignUp);
-
+function solver(libraries, limitDays) {
+  let remaining = limitDays;
+  let sortedLibs = libraries.sort(byHighestThroughput(0));
   const bannedBooks = new Set();
-
   const libs = [];
 
-  for (const lib of sortedLibs) {
-    const remainingBooks = lib.books.sort(byHigherScore).filter(book => {
-      if (bannedBooks.has(book.id)) {
-        return false;
-      } else {
-        bannedBooks.add(book.id);
-        return true;
-      }
-    });
+  while (sortedLibs.length) {
+    const lib = sortedLibs.shift();
 
-    lib.books = remainingBooks;
-
+    lib.books = filterBanned(bannedBooks, lib.books);
     libs.push(lib);
+    remaining -= lib.signUp;
+
+    sortedLibs = sortedLibs
+      .map(lib2 => {
+        lib2.newBooks = filterBannedWithoutAdding(bannedBooks, lib2.books);
+        return lib2;
+      })
+      .sort(byHighestThroughput(limitDays - remaining));
   }
 
   return libs.filter(lib => lib.size);
@@ -103,7 +102,17 @@ class Library {
     this.id = id;
     this.signUp = signUp;
     this.booksPerDay = booksPerDay;
+    this.books = books.sort(byHigherScore);
+    this.score = sumScore(books);
+  }
+
+  set newBooks(books) {
     this.books = books;
+    this.score = sumScore(books);
+  }
+
+  throughput(rem) {
+    return (this.score / (this.signUp + rem)) * this.booksPerDay;
   }
 
   get size() {
@@ -111,8 +120,33 @@ class Library {
   }
 }
 
-function byLesSignUp(a, b) {
-  return a.signUp - b.signUp;
+function filterBanned(bannedList, books) {
+  return books.filter(book => {
+    if (bannedList.has(book.id)) {
+      return false;
+    } else {
+      bannedList.add(book.id);
+      return true;
+    }
+  });
+}
+
+function filterBannedWithoutAdding(bannedList, books) {
+  return books.filter(book => {
+    if (bannedList.has(book.id)) {
+      return false;
+    } else {
+      return true;
+    }
+  });
+}
+
+function sumScore(books) {
+  return books.reduce((acc, book) => acc + book.score, 0);
+}
+
+function byHighestThroughput(rem) {
+  return (a, b) => b.throughput(rem) - a.throughput(rem);
 }
 
 function byHigherScore(a, b) {
