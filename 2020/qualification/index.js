@@ -55,9 +55,8 @@ function printProblem(libraries, limitDays) {
   console.log({ libraries: libraries.length });
 }
 
-function solver(libraries, limitDays) {
-  let remaining = limitDays;
-  let sortedLibs = libraries.sort(byHighestThroughput(0));
+function solver(libraries) {
+  let sortedLibs = libraries.sort(byHighestThroughput);
   const bannedBooks = new Set();
   const libs = [];
 
@@ -66,14 +65,13 @@ function solver(libraries, limitDays) {
 
     lib.books = filterBanned(bannedBooks, lib.books);
     libs.push(lib);
-    remaining -= lib.signUp;
 
     sortedLibs = sortedLibs
       .map(lib2 => {
         lib2.newBooks = filterBannedWithoutAdding(bannedBooks, lib2.books);
         return lib2;
       })
-      .sort(byHighestThroughput(limitDays - remaining));
+      .sort(byHighestThroughput);
   }
 
   return libs.filter(lib => lib.size);
@@ -107,12 +105,12 @@ class Library {
   }
 
   set newBooks(books) {
-    this.books = books;
+    this.books = books.sort(byHigherScore);
     this.score = sumScore(books);
   }
 
-  throughput(rem) {
-    return (this.score / (this.signUp + rem)) * this.booksPerDay;
+  get throughput() {
+    return this.score / this.signUp;
   }
 
   get size() {
@@ -145,8 +143,8 @@ function sumScore(books) {
   return books.reduce((acc, book) => acc + book.score, 0);
 }
 
-function byHighestThroughput(rem) {
-  return (a, b) => b.throughput(rem) - a.throughput(rem);
+function byHighestThroughput(a, b) {
+  return b.throughput - a.throughput;
 }
 
 function byHigherScore(a, b) {
