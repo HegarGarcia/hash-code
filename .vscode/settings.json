@@ -1,0 +1,5 @@
+{
+  "python.linting.pylintEnabled": true,
+  "python.linting.enabled": true,
+  "python.pythonPath": "/home/hjgr/.pyenv/versions/anaconda3-2019.10/bin/python"
+}
